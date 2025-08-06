@@ -11,12 +11,7 @@ v_min = 100
 v_max = 255
 
 # Screen capture region (full screen or a cropped window)
-monitor_region = {
-    "top": 100,      # adjust as needed
-    "left": 100,
-    "width": 800,
-    "height": 600
-}
+monitor_region = sct.monitors[1]
 
 # Start screen capture
 with mss.mss() as sct:

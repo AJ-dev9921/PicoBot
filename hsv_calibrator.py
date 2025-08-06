@@ -37,6 +37,11 @@ def calculate_hsv_bounds(hsv_values):
         'v_max': int(v_max)
     }
 
+def save_hsv_to_txt(hsv_range, filename="hsv_range.txt"):
+    with open(filename, "w") as f:
+        for k, v in hsv_range.items():
+            f.write(f"{k} = {v}\n")
+
 if __name__ == "__main__":
     folder = "screenshots"  # Your folder with CS2 screenshots
     image_files = [os.path.join(folder, f) for f in os.listdir(folder)
@@ -55,5 +60,8 @@ if __name__ == "__main__":
         print("\n✅ Final HSV Range:")
         for k, v in hsv_range.items():
             print(f"{k} = {v}")
+        
+        save_hsv_to_txt(hsv_range)
+        print("📁 Saved to hsv_range.txt")
     else:
         print("⚠️ No clicks registered.")

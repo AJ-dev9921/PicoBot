@@ -3,86 +3,86 @@ import numpy as np
 import mss
 import os
 
-# === Load reference images ===
-ref_folder = 'refs'
-orb = cv2.ORB_create(nfeatures=1000)
-bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
+# Load the game character images from the folder
+image_folder = 'game_characters'  # Folder containing character images
+images = []
+image_names = []
 
-ref_data = []
-for filename in os.listdir(ref_folder):
-    if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
-        img_path = os.path.join(ref_folder, filename)
-        ref_img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
-        kp, des = orb.detectAndCompute(ref_img, None)
-        if des is not None:
-            ref_data.append({'name': filename, 'image': ref_img, 'kp': kp, 'des': des})
-        else:
-            print(f"⚠️ No descriptors found in {filename}")
+for filename in os.listdir(image_folder):
+    if filename.endswith(".png") or filename.endswith(".jpg"):
+        img = cv2.imread(os.path.join(image_folder, filename), cv2.IMREAD_GRAYSCALE)
+        images.append(img)
+        image_names.append(filename)
 
-if not ref_data:
-    print("❌ No valid reference images found.")
-    exit()
+# Initialize ORB detector
+orb = cv2.ORB_create()
 
-# === Screen capture ===
+# Get the screen's width and height
 with mss.mss() as sct:
     screen_width = sct.monitors[1]['width']
     screen_height = sct.monitors[1]['height']
+
+    # Calculate the center of the screen
     center_x = screen_width // 2
     center_y = screen_height // 2
 
+    # Define the 300x300 region around the center
     monitor_region = {
-        'top': center_y - 150,
-        'left': center_x - 150,
-        'width': 300,
-        'height': 300
+        'top': center_y - 150,  # 150 pixels above the center
+        'left': center_x - 150, # 150 pixels to the left of the center
+        'width': 300,           # 300 pixels wide
+        'height': 300           # 300 pixels tall
     }
 
     while True:
-        # Capture screen region
+        # Capture the defined 300x300 region
         frame = np.array(sct.grab(monitor_region))
-        frame_bgr = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
-        frame_gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        kp2, des2 = orb.detectAndCompute(frame_gray, None)
-        best_match = None
-        best_score = 0
+        # Find keypoints and descriptors in the frame
+        kp_frame, des_frame = orb.detectAndCompute(gray_frame, None)
 
-        if des2 is not None:
-            for ref in ref_data:
-                matches = bf.knnMatch(ref['des'], des2, k=2)
+        # Loop through each loaded character image
+        for img, name in zip(images, image_names):
+            # Find keypoints and descriptors in the character image
+            kp_img, des_img = orb.detectAndCompute(img, None)
 
-                # ✅ SAFETY: Only use pairs with 2 matches
-                good_matches = []
-                for pair in matches:
-                    if len(pair) == 2:
-                        m, n = pair
-                        if m.distance < 0.75 * n.distance:
-                            good_matches.append(m)
+            # Use the BFMatcher to match features
+            bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+            matches = bf.match(des_frame, des_img)
+            
+            # Sort matches based on distance (lower distance = better match)
+            matches = sorted(matches, key = lambda x:x.distance)
 
-                if len(good_matches) > best_score:
-                    best_score = len(good_matches)
-                    best_match = {
-                        'name': ref['name'],
-                        'matches': good_matches,
-                        'ref_img': ref['image'],
-                        'ref_kp': ref['kp'],
-                        'frame_kp': kp2
-                    }
+            # Draw the top matches
+            if len(matches) > 0:
+                match_img = cv2.drawMatches(frame, kp_frame, img, kp_img, matches[:10], None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+                
+                # Optionally, add a threshold to decide when to consider it a match
+                match_distance = sum([m.distance for m in matches[:10]]) / len(matches[:10])  # Average match distance
+                threshold = 30  # You can adjust this slider value
+                
+                if match_distance < threshold:
+                    cv2.putText(frame, f'Match: {name}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                else:
+                    cv2.putText(frame, f'No match for {name}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
-        # Show results
-        if best_match and best_score >= 10:
-            print(f"🔍 Best Match: {best_match['name']} | Matches: {best_score}   ", end="\r")
-            matched = cv2.drawMatches(
-                best_match['ref_img'], best_match['ref_kp'],
-                frame_bgr, best_match['frame_kp'],
-                best_match['matches'], None, flags=2
-            )
-            cv2.imshow("ORB Match", matched)
-        else:
-            cv2.imshow("ORB Match", frame_bgr)
+        # Show the result
+        cv2.imshow("ORB Detection", frame)
 
+        # Add a slider to fine-tune the accuracy (threshold)
+        threshold_value = cv2.getTrackbarPos('Accuracy Threshold', 'ORB Detection')  # Adjust slider value
+        
+        # Set accuracy threshold dynamically
+        threshold = threshold_value
+
+        # Create a slider
+        if cv2.getWindowProperty('ORB Detection', cv2.WND_PROP_VISIBLE) >= 1:
+            cv2.createTrackbar('Accuracy Threshold', 'ORB Detection', threshold, 100, lambda x: None)
+
+        # Break loop on ESC key
         if cv2.waitKey(1) & 0xFF == 27:
             break
 
     cv2.destroyAllWindows()
-    

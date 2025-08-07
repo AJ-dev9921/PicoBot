@@ -6,7 +6,7 @@ import os
 # === Load reference images ===
 ref_folder = 'refs'
 orb = cv2.ORB_create(nfeatures=1000)
-bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)  # Use KNN
+bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
 
 ref_data = []
 for filename in os.listdir(ref_folder):
@@ -51,11 +51,13 @@ with mss.mss() as sct:
             for ref in ref_data:
                 matches = bf.knnMatch(ref['des'], des2, k=2)
 
-                # Apply Lowe’s ratio test
+                # ✅ SAFETY: Only use pairs with 2 matches
                 good_matches = []
-                for m, n in matches:
-                    if m.distance < 0.75 * n.distance:
-                        good_matches.append(m)
+                for pair in matches:
+                    if len(pair) == 2:
+                        m, n = pair
+                        if m.distance < 0.75 * n.distance:
+                            good_matches.append(m)
 
                 if len(good_matches) > best_score:
                     best_score = len(good_matches)

@@ -3,13 +3,12 @@ import numpy as np
 import mss
 import os
 
-# === Load all reference images from 'refs' folder ===
+# === Load reference images ===
 ref_folder = 'refs'
 orb = cv2.ORB_create(nfeatures=1000)
-bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)  # Use KNN
 
 ref_data = []
-
 for filename in os.listdir(ref_folder):
     if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
         img_path = os.path.join(ref_folder, filename)
@@ -18,13 +17,13 @@ for filename in os.listdir(ref_folder):
         if des is not None:
             ref_data.append({'name': filename, 'image': ref_img, 'kp': kp, 'des': des})
         else:
-            print(f"⚠️ Warning: No descriptors found in {filename}")
+            print(f"⚠️ No descriptors found in {filename}")
 
 if not ref_data:
     print("❌ No valid reference images found.")
     exit()
 
-# === Screen region config ===
+# === Screen capture ===
 with mss.mss() as sct:
     screen_width = sct.monitors[1]['width']
     screen_height = sct.monitors[1]['height']
@@ -45,43 +44,41 @@ with mss.mss() as sct:
         frame_gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
 
         kp2, des2 = orb.detectAndCompute(frame_gray, None)
-
         best_match = None
-        best_score = float('inf')
+        best_score = 0
 
         if des2 is not None:
             for ref in ref_data:
-                matches = bf.match(ref['des'], des2)
-                # Filter good matches by distance
-                good_matches = [m for m in matches if m.distance < 50]  # ← adjust threshold here
+                matches = bf.knnMatch(ref['des'], des2, k=2)
 
-                if len(good_matches) >= 10:
-                    score = sum([m.distance for m in good_matches])
+                # Apply Lowe’s ratio test
+                good_matches = []
+                for m, n in matches:
+                    if m.distance < 0.75 * n.distance:
+                        good_matches.append(m)
 
-                    if score < best_score:
-                        best_score = score
-                        best_match = {
-                            'name': ref['name'],
-                            'matches': good_matches,
-                            'ref_img': ref['image'],
-                            'ref_kp': ref['kp'],
-                            'frame_kp': kp2
-                        }
+                if len(good_matches) > best_score:
+                    best_score = len(good_matches)
+                    best_match = {
+                        'name': ref['name'],
+                        'matches': good_matches,
+                        'ref_img': ref['image'],
+                        'ref_kp': ref['kp'],
+                        'frame_kp': kp2
+                    }
 
-        # Show match
-        if best_match:
-            print(f"🔍 Best Match: {best_match['name']} (Score: {int(best_score)})", end='\r')
-
+        # Show results
+        if best_match and best_score >= 10:
+            print(f"🔍 Best Match: {best_match['name']} | Matches: {best_score}   ", end="\r")
             matched = cv2.drawMatches(
                 best_match['ref_img'], best_match['ref_kp'],
                 frame_bgr, best_match['frame_kp'],
                 best_match['matches'], None, flags=2
             )
-            cv2.imshow("Best Match", matched)
+            cv2.imshow("ORB Match", matched)
         else:
-            cv2.imshow("Best Match", frame_bgr)
+            cv2.imshow("ORB Match", frame_bgr)
 
-        # Exit on ESC
         if cv2.waitKey(1) & 0xFF == 27:
             break
 

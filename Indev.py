@@ -52,21 +52,21 @@ with mss.mss() as sct:
         if des2 is not None:
             for ref in ref_data:
                 matches = bf.match(ref['des'], des2)
-                matches = sorted(matches, key=lambda x: x.distance)
+                # Filter good matches by distance
+                good_matches = [m for m in matches if m.distance < 50]  # ← adjust threshold here
 
-                # Score based on sum of top distances
-                top_matches = matches[:20]
-                score = sum([m.distance for m in top_matches])
+                if len(good_matches) >= 10:
+                    score = sum([m.distance for m in good_matches])
 
-                if score < best_score:
-                    best_score = score
-                    best_match = {
-                        'name': ref['name'],
-                        'matches': top_matches,
-                        'ref_img': ref['image'],
-                        'ref_kp': ref['kp'],
-                        'frame_kp': kp2
-                    }
+                    if score < best_score:
+                        best_score = score
+                        best_match = {
+                            'name': ref['name'],
+                            'matches': good_matches,
+                            'ref_img': ref['image'],
+                            'ref_kp': ref['kp'],
+                            'frame_kp': kp2
+                        }
 
         # Show match
         if best_match:

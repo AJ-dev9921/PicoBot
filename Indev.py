@@ -8,6 +8,15 @@ image_folder = 'game_characters'  # Folder containing character images
 images = []
 image_names = []
 
+# Check if the folder exists and has images
+if not os.path.exists(image_folder):
+    print(f"Error: Folder '{image_folder}' not found!")
+    exit()
+
+if len(os.listdir(image_folder)) == 0:
+    print(f"Error: No images found in '{image_folder}'!")
+    exit()
+
 for filename in os.listdir(image_folder):
     if filename.endswith(".png") or filename.endswith(".jpg"):
         img = cv2.imread(os.path.join(image_folder, filename), cv2.IMREAD_GRAYSCALE)
@@ -34,6 +43,10 @@ with mss.mss() as sct:
         'height': 300           # 300 pixels tall
     }
 
+    # Create the window and the trackbar for threshold
+    cv2.namedWindow('ORB Detection')
+    cv2.createTrackbar('Accuracy Threshold', 'ORB Detection', 30, 100, lambda x: None)
+
     while True:
         # Capture the defined 300x300 region
         frame = np.array(sct.grab(monitor_region))
@@ -43,46 +56,69 @@ with mss.mss() as sct:
         # Find keypoints and descriptors in the frame
         kp_frame, des_frame = orb.detectAndCompute(gray_frame, None)
 
+        # Check if descriptors were detected
+        if des_frame is None:
+            continue  # Skip this frame if no descriptors were found
+
+        # Get the current threshold value from the trackbar
+        threshold = cv2.getTrackbarPos('Accuracy Threshold', 'ORB Detection')
+
         # Loop through each loaded character image
         for img, name in zip(images, image_names):
             # Find keypoints and descriptors in the character image
             kp_img, des_img = orb.detectAndCompute(img, None)
 
+            # Check if descriptors were detected
+            if des_img is None:
+                continue  # Skip this character image if no descriptors were found
+
             # Use the BFMatcher to match features
             bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
             matches = bf.match(des_frame, des_img)
-            
-            # Sort matches based on distance (lower distance = better match)
-            matches = sorted(matches, key = lambda x:x.distance)
 
-            # Draw the top matches
+            # Sort matches based on distance (lower distance = better match)
+            matches = sorted(matches, key=lambda x: x.distance)
+
+            # Handle empty matches to avoid division by zero
             if len(matches) > 0:
-                match_img = cv2.drawMatches(frame, kp_frame, img, kp_img, matches[:10], None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-                
-                # Optionally, add a threshold to decide when to consider it a match
                 match_distance = sum([m.distance for m in matches[:10]]) / len(matches[:10])  # Average match distance
-                threshold = 30  # You can adjust this slider value
-                
-                if match_distance < threshold:
-                    cv2.putText(frame, f'Match: {name}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-                else:
-                    cv2.putText(frame, f'No match for {name}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+            else:
+                match_distance = float('inf')  # No matches, set distance to infinity
+
+            # If the match distance is below the threshold, consider it a match
+            if match_distance < threshold:
+                cv2.putText(frame, f'Match: {name}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+                # Draw bounding box around the matched region (optional)
+                # Here, we're going to use cv2.findContours to find the bounding box for the matches
+                matched_pts = []
+                for m in matches[:10]:
+                    matched_pts.append(kp_frame[m.queryIdx].pt)  # Points from the frame
+
+                if matched_pts:
+                    # Convert list of matched points to numpy array
+                    matched_pts = np.array(matched_pts, dtype=np.float32)
+                    rect = cv2.boundingRect(matched_pts)  # Get the bounding box
+
+                    # Draw the bounding box around the detected match area
+                    x, y, w, h = rect
+                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+                # Draw lines between matched keypoints (optional)
+                for m in matches[:10]:
+                    pt1 = (int(kp_frame[m.queryIdx].pt[0]), int(kp_frame[m.queryIdx].pt[1]))
+                    pt2 = (int(kp_img[m.trainIdx].pt[0]), int(kp_img[m.trainIdx].pt[1]))
+                    cv2.line(frame, pt1, pt2, (0, 0, 255), 2)
+
+            else:
+                cv2.putText(frame, f'No match for {name}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
         # Show the result
         cv2.imshow("ORB Detection", frame)
 
-        # Add a slider to fine-tune the accuracy (threshold)
-        threshold_value = cv2.getTrackbarPos('Accuracy Threshold', 'ORB Detection')  # Adjust slider value
-        
-        # Set accuracy threshold dynamically
-        threshold = threshold_value
-
-        # Create a slider
-        if cv2.getWindowProperty('ORB Detection', cv2.WND_PROP_VISIBLE) >= 1:
-            cv2.createTrackbar('Accuracy Threshold', 'ORB Detection', threshold, 100, lambda x: None)
-
-        # Break loop on ESC key
+        # Exit loop if ESC key is pressed
         if cv2.waitKey(1) & 0xFF == 27:
             break
 
+    # Release resources
     cv2.destroyAllWindows()

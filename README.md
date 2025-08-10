@@ -1,6 +1,6 @@
 
 
-## 1.1 Install basic system packages
+##  🏋️ 1.1 Install basic system packages
 
 ```bash
 sudo apt update && sudo apt upgrade -y
@@ -70,7 +70,7 @@ realpath yolov8-dataset/train/images
 realpath yolov8-dataset/val/images
 ```
 
-## 🏋️ 1.8 Train YOLOv8-nano
+## 1.8 Train YOLOv8-nano
 
 Run this command (adjust batch if you get OOM):
 ```bash
@@ -82,5 +82,15 @@ Training outputs saved to:
 
 📁 runs/detect/yolov8n_run/
   ↳ best.pt ← this is the final model
-
 ✅ Training complete
+
+
+## 📤 2. Export to TFLite (for Android)
+
+First try direct export:
+
+yolo export model=runs/detect/yolov8n_run/weights/best.pt format=tflite
+
+It will produce:
+
+📄 best.tflite

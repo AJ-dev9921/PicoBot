@@ -9,7 +9,6 @@ sudo apt install -y build-essential git wget curl unzip zip python3 python3-pip 
 These are needed for Python, OpenCV, etc.
 
 ## 1.2 Install NVIDIA Driver
-
 You confirmed you have:
 
     Driver version: 575.64.03
@@ -19,6 +18,7 @@ You confirmed you have:
     GPU: GeForce GTX 1060 3GB
 
 ✅ Everything looks good.
+
 ## 1.3 Install Conda
 
 Download & install Miniconda:
@@ -28,3 +28,44 @@ bash Miniconda3-latest-Linux-x86_64.sh
 source ~/.bashrc
 ```
 Restart terminal after install.
+
+## 1.4 Create Python environment
+```bash
+conda create -n yolov8 python=3.10 -y
+conda activate yolov8
+```
+
+## 1.5 Install PyTorch (CUDA 12.1 — compatible with your 12.9)
+```bash
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+```
+Test it:
+```bash
+python -c "import torch; print(torch.cuda.is_available())"
+```
+✅ It should print True.
+
+## 1.6 Install YOLOv8
+```bash
+pip install ultralytics
+```
+### Test CLI:
+```bash
+yolo help
+```
+
+## 2.1 Edit data.yaml
+
+Use full absolute paths. Example:
+```bash
+train: /home/afraj/yolov8-dataset/train/images
+val: /home/afraj/yolov8-dataset/val/images
+
+nc: 3  # change this to your number of classes
+names: ['class_0', 'class_1', 'class_2']  # replace with real class names
+```
+To get full paths:
+```bash
+realpath yolov8-dataset/train/images
+realpath yolov8-dataset/val/images
+```

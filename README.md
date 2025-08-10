@@ -1,4 +1,7 @@
-1.1 Install basic system packages
+
+
+##1.1 Install basic system packages
+
 '''bash
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y build-essential git wget curl unzip zip \

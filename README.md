@@ -89,9 +89,9 @@ Training outputs saved to:
 ## 📤 2. Export to TFLite (for Android)
 
 First try direct export:
-
+```bash
 yolo export model=runs/detect/yolov8n_run/weights/best.pt format=tflite
-
+```
 It will produce:
 
 📄 best.tflite

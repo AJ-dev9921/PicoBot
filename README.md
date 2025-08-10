@@ -54,7 +54,7 @@ pip install ultralytics
 yolo help
 ```
 
-## 2.1 Edit data.yaml
+## 1.7 Edit data.yaml
 
 Use full absolute paths. Example:
 ```bash
@@ -69,3 +69,18 @@ To get full paths:
 realpath yolov8-dataset/train/images
 realpath yolov8-dataset/val/images
 ```
+
+## 🏋️ 1.8 Train YOLOv8-nano
+
+Run this command (adjust batch if you get OOM):
+```bash
+yolo task=detect mode=train model=yolov8n.pt \
+  data=/home/afraj/yolov8-dataset/data.yaml \
+  epochs=50 imgsz=640 batch=4 name=yolov8n_run
+```
+Training outputs saved to:
+
+📁 runs/detect/yolov8n_run/
+  ↳ best.pt ← this is the final model
+
+✅ Training complete

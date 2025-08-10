@@ -95,3 +95,32 @@ yolo export model=runs/detect/yolov8n_run/weights/best.pt format=tflite
 It will produce:
 
 📄 best.tflite
+
+
+## 🚨 3. Fallback Export (if direct TFLite fails)
+### 3.1 Export to ONNX
+```bash
+yolo export model=runs/detect/yolov8n_run/weights/best.pt format=onnx
+```
+### 3.2 Convert ONNX → TensorFlow SavedModel
+
+Install converter:
+```bash
+pip install onnx2tf
+```
+Run:
+```bash
+onnx2tf -i best.onnx -o saved_model
+```
+### 3.3 Convert to TFLite
+```bash
+import tensorflow as tf
+
+converter = tf.lite.TFLiteConverter.from_saved_model("saved_model")
+converter.optimizations = [tf.lite.Optimize.DEFAULT]  # optional
+tflite_model = converter.convert()
+
+with open("model.tflite", "wb") as f:
+    f.write(tflite_model)
+```
+Now you have model.tflite 🎉

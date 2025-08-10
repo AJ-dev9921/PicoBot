@@ -124,3 +124,13 @@ with open("model.tflite", "wb") as f:
     f.write(tflite_model)
 ```
 Now you have model.tflite 🎉
+
+## ✅ Step-by-Step Fix for Conda
+### ✅ Step 1: Accept the Terms of Service
+
+Run these two commands:
+```bash
+conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
+conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
+```
+This tells Conda: “Yes, I accept the license for the default package sources.”
